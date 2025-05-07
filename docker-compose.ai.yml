@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # AI Model Server
+  pytorch-server:
+    image: pytorch/torchserve:latest-gpu
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./model-store:/home/model-server/model-store
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Stable Diffusion for Content Generation
+  stable-diffusion:
+    image: stability-ai/stable-diffusion:latest
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./sd-models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Redis for Caching
+  redis:
+    image: redis:alpine
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+
+  # MongoDB for Content Storage
+  mongodb:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeThisPassword}
+    volumes:
+      - mongodb_data:/data/db
+
+  # RabbitMQ for Message Queue
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-changeThisPassword}
+
+volumes:
+  redis_data:
+  mongodb_data:
