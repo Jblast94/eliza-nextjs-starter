@@ -1,61 +1,69 @@
-# Dev Stack Clean - Supabase Integrated
+# Supabase-Integrated Development Stack
 
-A comprehensive development stack with Supabase database integration, featuring Ollama, OpenWebUI, n8n, MinIO, automated backups, and monitoring services.
+A comprehensive, production-ready development stack with Supabase PostgreSQL integration, automated backups, and Tailscale networking.
 
 ## 🚀 Features
 
-- **AI Services**: Ollama LLM server with OpenWebUI interface
-- **Workflow Automation**: n8n with Supabase database backend
-- **Object Storage**: MinIO S3-compatible storage
-- **Database**: Supabase PostgreSQL integration with automated backups
-- **Monitoring**: Grafana + Prometheus with Supabase data persistence
-- **Development**: Kaggle Jupyter notebooks with GPU support
+- **AI & LLM**: Ollama + OpenWebUI for local AI chat interface
+- **Automation**: n8n workflow automation platform
+- **Storage**: MinIO S3-compatible object storage
+- **Database**: Supabase PostgreSQL with automated backups
+- **Monitoring**: Grafana + Prometheus for comprehensive monitoring
+- **Notebooks**: Kaggle Jupyter notebooks with GPU support
 - **Networking**: Tailscale mesh networking with static IPs
-- **SSL**: Automatic Let's Encrypt certificates
+- **Security**: Let's Encrypt SSL certificates
+- **Backup**: Automated daily database backups with 30-day retention
 
 ## 🗄️ Supabase Integration
 
-This stack is fully integrated with Supabase for:
+### Database Backend
+- **Host**: `db.dwgsdbxkwjoyxywufbgf.supabase.co`
+- **Port**: `5432`
+- **Database**: `postgres`
+- **User**: `postgres`
+- **Password**: `rGEQ1s1Nl0t6Sdus`
 
-- **Database Backend**: PostgreSQL database for all services
-- **Data Persistence**: Grafana dashboards and n8n workflows stored in Supabase
-- **Automated Backups**: Daily database backups with 30-day retention
-- **Centralized Storage**: Single source of truth for all application data
+### Data Persistence
+- OpenWebUI: User data, chat history, and configurations
+- n8n: Workflow definitions and execution history
+- Grafana: Dashboard configurations and user settings
+- Jupyter: Database connections for data analysis
 
-### Supabase Configuration
+### Automated Backups
+- **Schedule**: Daily at 2:00 AM
+- **Retention**: 30 days
+- **Format**: Compressed SQL dumps
+- **Location**: `supabase_backups` Docker volume
 
-```
-Database: postgres
-Host: db.dwgsdbxkwjoyxywufbgf.supabase.co
-Port: 5432
-User: postgres
-Password: rGEQ1s1Nl0t6Sdus
-```
+### Centralized Storage
+- All application data stored in Supabase PostgreSQL
+- Consistent data access across all services
+- Built-in Supabase features: real-time subscriptions, row-level security
 
-## 🏗️ Quick Start
+## 🚀 Quick Start
 
-1. **Clone and Setup**:
+### Prerequisites
+- Docker & Docker Compose
+- Tailscale (for networking)
+- Git
+
+### Deployment
+
+1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
-   cd Dev-Stack-Clean-1
-   cp .env.example .env
+   git clone https://github.com/Jblast94/Dev-Stack-Clean.git
+   cd Dev-Stack-Clean
    ```
 
-2. **Configure Environment**:
-   Edit `.env` file with your specific values:
+2. **Run the deployment script**:
    ```bash
-   nano .env
+   chmod +x deploy-supabase-stack.sh
+   ./deploy-supabase-stack.sh
    ```
 
-3. **Deploy Stack**:
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Configure Tailscale**:
-   ```bash
-   tailscale up --advertise-routes=100.64.0.0/24
-   ```
+3. **Configure DNS records**:
+   - Import `cloudflare-dns-records.csv` into Cloudflare
+   - Replace `[TAILSCALE_IP]` with your actual Tailscale IP
 
 ## 🌐 Service URLs
 
@@ -67,277 +75,163 @@ Password: rGEQ1s1Nl0t6Sdus
 | Adminer | https://db.bbj4u.xyz | Database Management |
 | Grafana | https://monitor.bbj4u.xyz | Monitoring Dashboard |
 | Prometheus | https://metrics.bbj4u.xyz | Metrics Collection |
-| Jupyter | https://notebook.bbj4u.xyz | GPU Notebooks |
+| Jupyter | https://notebook.bbj4u.xyz | Data Science Notebooks |
 
-## 🔧 Configuration
+## ⚙️ Configuration
 
 ### Environment Variables
-
-Key environment variables in `.env`:
+Copy `.env.example` to `.env` and customize:
 
 ```bash
-# Supabase
-DATABASE_URL=postgresql://postgres:rGEQ1s1Nl0t6Sdus@db.dwgsdbxkwjoyxywufbgf.supabase.co:5432/postgres
-SUPABASE_URL=https://dwgsdbxkwjoyxywufbgf.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# Application Secrets
-WEBUI_SECRET_KEY=your_secure_key
-N8N_BASIC_AUTH_USER=admin
-N8N_BASIC_AUTH_PASSWORD=secure_password
+cp .env.example .env
+# Edit .env with your specific values
 ```
 
 ### DNS Configuration
+1. Update `cloudflare-dns-records.csv` with your Tailscale IP
+2. Import the CSV file into Cloudflare DNS
+3. Ensure all domains point to your Tailscale node
 
-Import `cloudflare-dns-records.csv` to Cloudflare:
-- Replace `[TAILSCALE_IP]` with your actual Tailscale IP
-- All domains point to your Tailscale subnet
-
-## 💾 Backup System
+## 🔄 Backup System
 
 ### Automated Backups
-
-- **Schedule**: Daily at 2:00 AM
-- **Retention**: 30 days
-- **Location**: `/backups` volume in `supabase-backup` container
-- **Format**: Compressed SQL dumps
+- **Frequency**: Daily at 2:00 AM
+- **Retention**: 30 days automatic cleanup
+- **Format**: Compressed PostgreSQL dumps
+- **Monitoring**: Logs available via Docker
 
 ### Manual Backup
-
 ```bash
 # Create immediate backup
 docker exec supabase-backup /scripts/backup.sh
 
-# View backup logs
-docker logs supabase-backup
-
-# List backups
+# View backup files
 docker exec supabase-backup ls -la /backups/
+
+# Check backup logs
+docker logs supabase-backup
 ```
 
-### Restore from Backup
-
+### Backup Recovery
 ```bash
-# Restore from specific backup
-docker exec -i supabase-backup psql -h $PGHOST -U $PGUSER -d $PGDATABASE < /backups/backup_YYYYMMDD_HHMMSS.sql
+# Extract backup
+docker exec supabase-backup gunzip /backups/backup_YYYYMMDD_HHMMSS.sql.gz
+
+# Restore to Supabase (use with caution)
+psql -h db.dwgsdbxkwjoyxywufbgf.supabase.co -p 5432 -U postgres -d postgres < backup_file.sql
 ```
 
 ## 🔒 Security Features
 
+- **SSL/TLS**: Automatic Let's Encrypt certificates
 - **Network Isolation**: Tailscale mesh networking
-- **SSL Certificates**: Automatic Let's Encrypt
-- **Database Security**: Supabase managed PostgreSQL
-- **Access Control**: Basic auth for admin interfaces
-- **Resource Limits**: CPU and memory constraints
+- **Authentication**: Basic auth for n8n, token-based for Jupyter
+- **Database Security**: Supabase built-in security features
+- **Resource Limits**: CPU and memory constraints for all services
 
 ## 📊 Monitoring
 
 ### Grafana Dashboards
+- System metrics and performance
+- Application-specific monitoring
+- Database connection and query metrics
+- Backup system status
 
-- **System Metrics**: CPU, memory, disk usage
-- **Application Metrics**: Service health and performance
-- **Database Metrics**: Supabase connection and query stats
-- **Backup Status**: Automated backup monitoring
+### Prometheus Metrics
+- Container resource usage
+- Network performance
+- Service health checks
+- Custom application metrics
 
-### Prometheus Targets
+## 🖥️ GPU Support
 
-- Docker containers
-- System metrics
-- Application-specific metrics
-- Custom alerting rules
+Kaggle Jupyter notebooks include:
+- NVIDIA GPU access
+- CUDA toolkit
+- Popular ML/AI libraries
+- Direct database connectivity
 
-## 🚀 GPU Support
-
-Kaggle notebook service includes:
-- **NVIDIA GPU access** for ML workloads
-- **Pre-installed libraries**: TensorFlow, PyTorch, scikit-learn
-- **Persistent storage**: `/home/jovyan/work` volume
-- **Database connectivity**: Direct Supabase integration
-
-## 🔧 Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
-1. **Service not accessible**:
+1. **Services not accessible**:
    ```bash
-   # Check service status
-   docker-compose ps
+   # Check Tailscale status
+   tailscale status
    
-   # View logs
-   docker-compose logs [service-name]
+   # Verify DNS records
+   nslookup chat.bbj4u.xyz
    ```
 
 2. **Database connection issues**:
    ```bash
    # Test Supabase connectivity
-   docker exec adminer ping db.dwgsdbxkwjoyxywufbgf.supabase.co
+   docker exec supabase-backup pg_isready -h db.dwgsdbxkwjoyxywufbgf.supabase.co -p 5432
    ```
 
 3. **Backup failures**:
    ```bash
-   # Check backup service logs
+   # Check backup logs
    docker logs supabase-backup
    
-   # Verify environment variables
-   docker exec supabase-backup env | grep PG
+   # Manual backup test
+   docker exec supabase-backup /scripts/backup.sh
    ```
 
-### Health Checks
-
+### Service Logs
 ```bash
-# Check all services
+# View all services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f [service-name]
+
+# Real-time monitoring
 docker-compose ps
-
-# Test network connectivity
-docker exec ollama ping 100.64.0.102
-
-# Verify Supabase connection
-docker exec adminer pg_isready -h db.dwgsdbxkwjoyxywufbgf.supabase.co -p 5432
 ```
 
-## 📝 Maintenance
+## 🔧 Maintenance
 
-### Regular Tasks
-
-1. **Update containers**:
-   ```bash
-   docker-compose pull
-   docker-compose up -d
-   ```
-
-2. **Clean old images**:
-   ```bash
-   docker system prune -a
-   ```
-
-3. **Monitor disk usage**:
-   ```bash
-   docker system df
-   ```
-
-4. **Backup verification**:
-   ```bash
-   docker exec supabase-backup ls -la /backups/
-   ```
-
-## Overview
-This repository contains a collection of scripts and configurations for deploying and managing a development stack with AI services on Google Cloud Run, including model servers, content generation tools, and supporting infrastructure.
-
-## Services Included
-- **Ollama:** Local LLM server
-- **OpenWebUI:** Web interface for interacting with Ollama
-- **n8n:** Workflow automation tool
-- **MinIO:** S3-compatible object storage
-- **Adminer:** Database management tool
-- **Redis:** In-memory data store for caching
-- **MongoDB:** NoSQL database for content storage
-- **RabbitMQ:** Message queue for service communication
-- **Grafana:** Monitoring and visualization
-- **Prometheus:** Metrics collection
-
-## Prerequisites
-
-- **Google Cloud Platform Account:** With billing enabled
-- **Google Cloud SDK:** Installed and configured on your local machine
-- **Docker:** Installed on your local machine
-- **kubectl:** Installed on your local machine
-- **Domain Name:** You need to own a domain name (e.g., myn8n.com) and be able to configure DNS records
-
-## Deployment Instructions
-
-### 1. Clone the Repository
+### Updates
 ```bash
-git clone <repository-url>
-cd dev-stack
+# Pull latest images
+docker-compose pull
+
+# Restart with updates
+docker-compose up -d
 ```
 
-### 2. Configure Google Cloud
-
+### Cleanup
 ```bash
-# Login to Google Cloud
-gcloud auth login
+# Remove old containers
+docker system prune
 
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
-
-# Enable required APIs
-gcloud services enable run.googleapis.com containerregistry.googleapis.com storage.googleapis.com
+# Clean unused volumes (careful!)
+docker volume prune
 ```
 
-### 3. Deploy to Google Cloud Run
-
+### Scaling
 ```bash
-# Make the deployment script executable
-chmod +x deploy-to-cloud-run.sh
-
-# Run the deployment script
-./deploy-to-cloud-run.sh
+# Scale specific services
+docker-compose up -d --scale prometheus=2
 ```
 
-The script will:
-- Prompt for necessary configuration details
-- Create Kubernetes secrets for sensitive data
-- Build and push the Docker image to Google Container Registry
-- Deploy the service to Google Cloud Run
-- Display the service URL and next steps
+## 📝 License
 
-### 4. Configure DNS Records
+MIT License - see LICENSE file for details.
 
-Update your domain's DNS records to point the following subdomains to the Cloud Run service URL using CNAME records:
+## 🤝 Contributing
 
-- `llm.myn8n.com` - Ollama API
-- `chat.myn8n.com` - OpenWebUI
-- `n8n.myn8n.com` - n8n workflow automation
-- `s3-console.myn8n.com` - MinIO Console
-- `s3.myn8n.com` - MinIO API
-- `db.myn8n.com` - Adminer
-- `monitor.myn8n.com` - Grafana
-- `metrics.myn8n.com` - Prometheus
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-## Accessing Your Services
+## 📞 Support
 
-Once the DNS records have propagated, you can access your services at the configured subdomains (e.g., `https://chat.myn8n.com`).
-
-## Data Persistence
-
-The deployment uses a Persistent Volume Claim (PVC) to store data. This ensures that your data persists even if the containers are restarted.
-
-## GPU Support
-
-If you need GPU support for AI services (PyTorch Model Server, Stable Diffusion, Ollama), you'll need to:
-
-1. Use a GPU-enabled Cloud Run configuration
-2. Update the `cloud-run-config.yaml` file to include GPU specifications
-3. Use container images that support GPU acceleration
-
-## Monitoring and Scaling
-
-- **Monitoring:** Access Grafana at `https://monitor.myn8n.com` for monitoring dashboards
-- **Metrics:** Access Prometheus at `https://metrics.myn8n.com` for raw metrics
-- **Scaling:** The Cloud Run configuration includes autoscaling settings that can be adjusted in the `cloud-run-config.yaml` file
-
-## Security Considerations
-
-- All sensitive data is stored in Kubernetes secrets
-- Services are accessible only via HTTPS
-- Basic authentication is enabled for n8n, MinIO, and other services
-- Change all default passwords immediately after deployment
-
-## Troubleshooting
-
-- **Service not accessible:** Check DNS configuration and Cloud Run service status
-- **Container fails to start:** Check Cloud Run logs for error messages
-- **Data persistence issues:** Verify the PVC is correctly mounted
-
-## Customization
-
-You can customize the deployment by modifying the following files:
-
-- `docker-compose.yml`: Service configuration
-- `cloud-run-config.yaml`: Cloud Run deployment configuration
-- `Dockerfile`: Container build instructions
-- `prometheus.yml`: Prometheus configuration
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+For issues and questions:
+- Create an issue in this repository
+- Check the troubleshooting section
+- Review Docker and Tailscale documentation
