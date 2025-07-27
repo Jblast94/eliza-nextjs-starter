@@ -10,9 +10,11 @@ A comprehensive, production-ready development stack with Supabase PostgreSQL int
 - **Database**: Supabase PostgreSQL with automated backups
 - **Monitoring**: Grafana + Prometheus for comprehensive monitoring
 - **Notebooks**: Kaggle Jupyter notebooks with GPU support
+- **Docker Management**: Portainer for container management
 - **Networking**: Tailscale mesh networking with static IPs
 - **Security**: Let's Encrypt SSL certificates
 - **Backup**: Automated daily database backups with 30-day retention
+- **Simplified Setup**: Pre-configured credentials for personal use
 
 ## 🗄️ Supabase Integration
 
@@ -76,16 +78,18 @@ A comprehensive, production-ready development stack with Supabase PostgreSQL int
 | Grafana | https://monitor.bbj4u.xyz | Monitoring Dashboard |
 | Prometheus | https://metrics.bbj4u.xyz | Metrics Collection |
 | Jupyter | https://notebook.bbj4u.xyz | Data Science Notebooks |
+| Portainer | https://docker.bbj4u.xyz | Docker Management |
 
 ## ⚙️ Configuration
 
 ### Environment Variables
-Copy `.env.example` to `.env` and customize:
+A pre-configured `.env` file is included with simplified credentials:
 
-```bash
-cp .env.example .env
-# Edit .env with your specific values
-```
+- **Username**: jblast
+- **Password**: password123
+- **Email**: johnnyblast94@gmail.com
+
+All services use these same credentials for simplicity in this personal stack.
 
 ### DNS Configuration
 1. Update `cloudflare-dns-records.csv` with your Tailscale IP

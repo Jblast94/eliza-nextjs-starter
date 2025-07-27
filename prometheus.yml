@@ -26,3 +26,11 @@ scrape_configs:
   - job_name: 'rabbitmq'
     static_configs:
       - targets: ['rabbitmq:15672']
+
+  - job_name: 'portainer'
+    static_configs:
+      - targets: ['portainer:9443']
+
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']

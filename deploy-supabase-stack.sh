@@ -64,6 +64,7 @@ setup_environment() {
             cp .env.example .env
             print_success "Created .env file from template"
             print_warning "Please edit .env file with your specific values before continuing"
+            print_warning "Required: TS_AUTHKEY and CLOUDFLARE_TUNNEL_TOKEN"
             read -p "Press Enter after editing .env file..."
         else
             print_error ".env.example file not found"
@@ -72,6 +73,23 @@ setup_environment() {
     else
         print_success ".env file already exists"
     fi
+    
+    # Validate required environment variables
+    source .env
+    
+    if [ -z "$TS_AUTHKEY" ] || [ "$TS_AUTHKEY" = "tskey-auth-YOUR_AUTH_KEY_HERE" ]; then
+        print_error "TS_AUTHKEY not configured in .env file"
+        print_status "Get your auth key from: https://login.tailscale.com/admin/settings/keys"
+        exit 1
+    fi
+    
+    if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ] || [ "$CLOUDFLARE_TUNNEL_TOKEN" = "YOUR_TUNNEL_TOKEN_HERE" ]; then
+        print_error "CLOUDFLARE_TUNNEL_TOKEN not configured in .env file"
+        print_status "Get your tunnel token from Cloudflare Zero Trust Dashboard"
+        exit 1
+    fi
+    
+    print_success "Environment validation completed"
 }
 
 # Function to create backup script directory
@@ -112,26 +130,31 @@ validate_supabase() {
 
 # Function to setup Tailscale
 setup_tailscale() {
-    print_status "Setting up Tailscale..."
+    print_status "Setting up Tailscale Magic DNS..."
     
     if command_exists tailscale; then
         # Check if Tailscale is already connected
         if tailscale status >/dev/null 2>&1; then
             print_success "Tailscale is already connected"
             
-            # Advertise subnet routes
-            print_status "Advertising subnet routes..."
-            if tailscale up --advertise-routes=100.64.0.0/24; then
-                print_success "Subnet routes advertised successfully"
-            else
-                print_warning "Failed to advertise subnet routes"
-            fi
+            # Enable Magic DNS if not already enabled
+            print_status "Ensuring Magic DNS is enabled..."
+            tailscale up --accept-dns=true >/dev/null 2>&1 || true
+            print_success "Magic DNS configuration updated"
         else
-            print_warning "Tailscale is not connected. Please run 'tailscale up' first"
+            print_warning "Tailscale is not connected"
+            print_status "The Tailscale container will handle authentication automatically"
         fi
     else
-        print_warning "Tailscale not installed, skipping network setup"
+        print_warning "Tailscale not installed on host, using containerized version"
     fi
+    
+    # Enable IP forwarding for container networking
+    print_status "Enabling IP forwarding..."
+    echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf >/dev/null
+    echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.conf >/dev/null
+    sudo sysctl -p >/dev/null 2>&1 || true
+    print_success "IP forwarding enabled"
 }
 
 # Function to deploy stack
@@ -168,19 +191,40 @@ deploy_stack() {
 show_service_urls() {
     print_success "\nDeployment completed! Services are available at:"
     echo ""
-    echo "🤖 OpenWebUI (AI Chat):     https://chat.bbj4u.xyz"
+    echo "🤖 Ollama (LLM API):        https://llm.bbj4u.xyz"
+    echo "💬 OpenWebUI (AI Chat):     https://chat.bbj4u.xyz"
+    echo "💻 VS Code Server:          https://code.bbj4u.xyz"
     echo "🔄 n8n (Automation):        https://n8n.bbj4u.xyz"
-    echo "📦 MinIO (Storage):         https://s3.bbj4u.xyz"
+    echo "📦 MinIO (S3 API):          https://s3.bbj4u.xyz"
+    echo "🎛️  MinIO Console:           https://s3-console.bbj4u.xyz"
     echo "🗄️  Adminer (Database):      https://db.bbj4u.xyz"
     echo "📊 Grafana (Monitoring):    https://monitor.bbj4u.xyz"
     echo "📈 Prometheus (Metrics):    https://metrics.bbj4u.xyz"
     echo "📓 Jupyter (Notebooks):     https://notebook.bbj4u.xyz"
+    echo "🐰 RabbitMQ (Queue):        https://queue.bbj4u.xyz"
+    echo "🐳 Portainer (Docker):      https://docker.bbj4u.xyz"
     echo ""
-    print_warning "Note: Make sure to configure your DNS records using cloudflare-dns-records.csv"
+    echo "📋 Default Credentials:"
+    echo "   Username: jblast"
+    echo "   Password: password123"
+    echo "   Email: johnnyblast94@gmail.com"
     echo ""
-    print_status "To view logs: docker-compose logs -f [service-name]"
-    print_status "To stop stack: docker-compose down"
-    print_status "To update stack: docker-compose pull && docker-compose up -d"
+    print_success "🌐 Tailscale Magic DNS Setup:"
+    echo "   • Services auto-register with Magic DNS"
+    echo "   • Cloudflare Tunnel handles external access"
+    echo "   • Internal communication via service hostnames"
+    echo ""
+    print_warning "📋 Important Setup Steps:"
+    echo "   1. Configure Cloudflare Tunnel in Zero Trust Dashboard"
+    echo "   2. Point your domain DNS to Cloudflare"
+    echo "   3. Verify Tailscale auth key is valid"
+    echo ""
+    print_status "📖 Documentation: TAILSCALE_MAGIC_DNS_SETUP.md"
+    print_status "🔧 Useful Commands:"
+    echo "   • View logs: docker-compose logs -f [service-name]"
+    echo "   • Stop stack: docker-compose down"
+    echo "   • Update stack: docker-compose pull && docker-compose up -d"
+    echo "   • Check Tailscale: docker exec tailscale tailscale status"
 }
 
 # Function to show backup information

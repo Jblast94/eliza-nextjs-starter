@@ -1,26 +1,66 @@
 version: '3.8'
 
 services:
+  # Tailscale Sidecar for Magic DNS
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale
+    hostname: devstack
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+      - TS_ACCEPT_DNS=true
+      - TS_HOSTNAME=devstack
+      - TS_EXTRA_ARGS=--advertise-tags=tag:devstack
+      - TS_ENABLE_HEALTH_CHECK=true
+      - TS_LOCAL_ADDR_PORT=:9002
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9002/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - tailscale
+
   # Ollama - LLM Server
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    networks:
-      tailscale:
-        ipv4_address: 100.64.0.101
+    hostname: ollama
     environment:
       - OLLAMA_HOST=0.0.0.0
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=Host(`llm.bbj4u.xyz`)"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
 
   # OpenWebUI - Web Interface for Ollama
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: openwebui
-    networks:
-      tailscale:
-        ipv4_address: 100.64.0.102
+    hostname: chat
     volumes:
       - openwebui_data:/app/backend/data
     ports:
@@ -34,25 +74,49 @@ services:
           cpus: '0.5'
           memory: 2G
     environment:
-      - OLLAMA_API_BASE_URL=http://100.64.0.101:11434/api
-      - VIRTUAL_HOST=chat.bbj4u.xyz
-      - LETSENCRYPT_HOST=chat.bbj4u.xyz
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-default_secret}
+      - OLLAMA_API_BASE_URL=http://ollama:11434/api
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-password123}
       # Supabase Database Configuration
       - DATABASE_URL=postgresql://postgres:rGEQ1s1Nl0t6Sdus@db.dwgsdbxkwjoyxywufbgf.supabase.co:5432/postgres
       - SUPABASE_URL=https://dwgsdbxkwjoyxywufbgf.supabase.co
       - SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR3Z3NkYnhrd2pveXh5d3VmYmdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNjc4MzksImV4cCI6MjA2Nzg0MzgzOX0.U2tPb3kU4HFf32U1cjtDCz_jjcwKWGGlr3ImR5gr6DU
     depends_on:
       - ollama
+      - tailscale
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.chat.rule=Host(`chat.bbj4u.xyz`)"
+      - "traefik.http.services.chat.loadbalancer.server.port=8080"
+
+  # VS Code Server
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    hostname: code
+    ports:
+      - "8443:8080"
+    environment:
+      - PASSWORD=${VSCODE_PASSWORD:-password123}
+      - SUDO_PASSWORD=${VSCODE_PASSWORD:-password123}
+    volumes:
+      - code_data:/home/coder
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/home/coder/workspace
+    user: "0:0"
+    restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.code.rule=Host(`code.bbj4u.xyz`)"
+      - "traefik.http.services.code.loadbalancer.server.port=8080"
 
   # n8n - Workflow Automation
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n
-    networks:
-      tailscale:
-        ipv4_address: 100.64.0.103
+    hostname: n8n
     ports:
       - "8082:5678"
     deploy:
@@ -70,10 +134,8 @@ services:
       - N8N_USER_MANAGEMENT_DISABLED=true
       - NODE_ENV=production
       - WEBHOOK_URL=https://n8n.bbj4u.xyz/
-      - VIRTUAL_HOST=n8n.bbj4u.xyz
-      - LETSENCRYPT_HOST=n8n.bbj4u.xyz
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeThisPassword}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-jblast}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-password123}
       # Supabase Database Configuration for n8n
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=db.dwgsdbxkwjoyxywufbgf.supabase.co
@@ -84,33 +146,42 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.n8n.rule=Host(`n8n.bbj4u.xyz`)"
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
 
   # Minio - S3-compatible Object Storage
   minio:
     image: minio/minio:latest
     container_name: minio
-    networks:
-      tailscale:
-        ipv4_address: 100.64.0.104
+    hostname: s3
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - minio_data:/data
     environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-changeThisPassword}
-      - VIRTUAL_HOST=s3.bbj4u.xyz
-      - LETSENCRYPT_HOST=s3.bbj4u.xyz
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-jblast}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-password123}
     command: server --console-address ":9001" /data
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.s3-api.rule=Host(`s3.bbj4u.xyz`)"
+      - "traefik.http.services.s3-api.loadbalancer.server.port=9000"
+      - "traefik.http.routers.s3-console.rule=Host(`s3-console.bbj4u.xyz`)"
+      - "traefik.http.services.s3-console.loadbalancer.server.port=9001"
 
   # Supabase Backup Service
   supabase-backup:
     image: postgres:15-alpine
     container_name: supabase-backup
-    networks:
-      - tailscale
+    hostname: backup
     environment:
       - PGHOST=db.dwgsdbxkwjoyxywufbgf.supabase.co
       - PGPORT=5432
@@ -127,74 +198,82 @@ services:
         crond -f
       '
     restart: unless-stopped
+    depends_on:
+      - tailscale
 
   # Adminer - Database Management
   adminer:
     image: adminer:latest
     container_name: adminer
-    networks:
-      - tailscale
+    hostname: db
     ports:
       - "8083:8080"
-    environment:
-      - VIRTUAL_HOST=db.bbj4u.xyz
-      - LETSENCRYPT_HOST=db.bbj4u.xyz
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.db.rule=Host(`db.bbj4u.xyz`)"
+      - "traefik.http.services.db.loadbalancer.server.port=8080"
 
   # Redis for Caching
   redis:
     image: redis:alpine
     container_name: redis
-    networks:
-      - tailscale
+    hostname: redis
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    depends_on:
+      - tailscale
 
   # MongoDB for Content Storage
   mongodb:
     image: mongo:latest
     container_name: mongodb
-    networks:
-      - tailscale
+    hostname: mongodb
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeThisPassword}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password123}
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped
+    depends_on:
+      - tailscale
 
   # RabbitMQ for Message Queue
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
-    networks:
-      - tailscale
+    hostname: rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=admin
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-changeThisPassword}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-password123}
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`queue.bbj4u.xyz`)"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
 
   # Grafana for monitoring
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
-    networks:
-      - tailscale
+    hostname: monitor
     ports:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeThisPassword}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-password123}
       - GF_SERVER_ROOT_URL=https://monitor.bbj4u.xyz
-      - VIRTUAL_HOST=monitor.bbj4u.xyz
-      - LETSENCRYPT_HOST=monitor.bbj4u.xyz
       # Supabase Database Configuration for Grafana
       - GF_DATABASE_TYPE=postgres
       - GF_DATABASE_HOST=db.dwgsdbxkwjoyxywufbgf.supabase.co:5432
@@ -202,13 +281,18 @@ services:
       - GF_DATABASE_USER=postgres
       - GF_DATABASE_PASSWORD=rGEQ1s1Nl0t6Sdus
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.monitor.rule=Host(`monitor.bbj4u.xyz`)"
+      - "traefik.http.services.monitor.loadbalancer.server.port=3000"
 
   # Prometheus for metrics collection
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
-    networks:
-      - tailscale
+    hostname: metrics
     ports:
       - "9090:9090"
     volumes:
@@ -219,23 +303,24 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    environment:
-      - VIRTUAL_HOST=metrics.bbj4u.xyz
-      - LETSENCRYPT_HOST=metrics.bbj4u.xyz
     restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.metrics.rule=Host(`metrics.bbj4u.xyz`)"
+      - "traefik.http.services.metrics.loadbalancer.server.port=9090"
 
   # Kaggle Notebook with GPU Support
   kaggle-notebook:
     image: gcr.io/kaggle-gpu-images/gpu-jupyter:latest
     container_name: kaggle-notebook
-    networks:
-      tailscale:
-        ipv4_address: 100.64.0.105
+    hostname: notebook
+    ports:
+      - "8888:8888"
     environment:
-      - VIRTUAL_HOST=notebook.bbj4u.xyz
-      - LETSENCRYPT_HOST=notebook.bbj4u.xyz
       - DOCKER_STACKS_JUPYTERCMD=jupyter-lab
-      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-changeThisToken}
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:-password123}
       # Supabase Database Configuration for Jupyter
       - DATABASE_URL=postgresql://postgres:rGEQ1s1Nl0t6Sdus@db.dwgsdbxkwjoyxywufbgf.supabase.co:5432/postgres
     volumes:
@@ -248,21 +333,36 @@ services:
               count: 1
               capabilities: [gpu]
     restart: unless-stopped
-
-networks:
-  tailscale:
-    driver: bridge
-    attachable: true
-    ipam:
-      config:
-        - subnet: 100.64.0.0/24
-          gateway: 100.64.0.1
+    depends_on:
+      - tailscale
     labels:
-      - com.tailscale.ipn.router=100.64.0.0/24
+      - "traefik.enable=true"
+      - "traefik.http.routers.notebook.rule=Host(`notebook.bbj4u.xyz`)"
+      - "traefik.http.services.notebook.loadbalancer.server.port=8888"
+
+  # Portainer - Docker Management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    hostname: docker
+    ports:
+      - "9443:9443"
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    restart: unless-stopped
+    depends_on:
+      - tailscale
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docker.rule=Host(`docker.bbj4u.xyz`)"
+      - "traefik.http.services.docker.loadbalancer.server.port=9443"
 
 volumes:
   ollama_data:
   openwebui_data:
+  code_data:
   n8n_data:
   minio_data:
   supabase_backups:
@@ -271,3 +371,5 @@ volumes:
   grafana_data:
   prometheus_data:
   kaggle_data:
+  portainer_data:
+  tailscale_state:
