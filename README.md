@@ -19,11 +19,11 @@ A comprehensive, production-ready development stack with Supabase PostgreSQL int
 ## 🗄️ Supabase Integration
 
 ### Database Backend
-- **Host**: `db.dwgsdbxkwjoyxywufbgf.supabase.co`
+- **Host**: Your Supabase host (e.g., `db.xxxxxxxx.supabase.co`)
 - **Port**: `5432`
 - **Database**: `postgres`
 - **User**: `postgres`
-- **Password**: `rGEQ1s1Nl0t6Sdus`
+- **Password**: See `.env.example`
 
 ### Data Persistence
 - OpenWebUI: User data, chat history, and configurations
@@ -122,7 +122,7 @@ docker logs supabase-backup
 docker exec supabase-backup gunzip /backups/backup_YYYYMMDD_HHMMSS.sql.gz
 
 # Restore to Supabase (use with caution)
-psql -h db.dwgsdbxkwjoyxywufbgf.supabase.co -p 5432 -U postgres -d postgres < backup_file.sql
+psql -h ${SUPABASE_HOST} -p ${SUPABASE_PORT} -U ${SUPABASE_DB_USER} -d ${SUPABASE_DB_NAME} < backup_file.sql
 ```
 
 ## 🔒 Security Features
@@ -171,7 +171,7 @@ Kaggle Jupyter notebooks include:
 2. **Database connection issues**:
    ```bash
    # Test Supabase connectivity
-   docker exec supabase-backup pg_isready -h db.dwgsdbxkwjoyxywufbgf.supabase.co -p 5432
+   docker exec supabase-backup pg_isready -h ${SUPABASE_HOST} -p ${SUPABASE_PORT}
    ```
 
 3. **Backup failures**:
