@@ -1,0 +1,67 @@
+# Zero Trust Application Settings
+
+## RustDesk Server Application
+
+```json
+{
+    "name": "RustDesk Server",
+    "domain": "remote.bbj4u.xyz",
+    "type": "self_hosted",
+    "rules": [
+        {
+            "name": "Allow Trusted Users",
+            "decision": "allow",
+            "include": [
+                {
+                    "email_domain": {
+                        "domain": "bbj4u.xyz"
+                    }
+                },
+                {
+                    "geo": {
+                        "country_code": "US"
+                    }
+                }
+            ],
+            "require": [
+                {
+                    "auth_method": ["device_posture"]
+                }
+            ]
+        }
+    ]
+}
+```
+
+## Trae.ai IDE Application
+
+```json
+{
+    "name": "Trae.ai IDE",
+    "domain": "trae.bbj4u.xyz",
+    "type": "self_hosted",
+    "session_duration": "24h",
+    "rules": [
+        {
+            "name": "Allow Developers",
+            "decision": "allow",
+            "include": [
+                {
+                    "group": "Developers"
+                }
+            ],
+            "require": [
+                {
+                    "auth_method": ["device_posture", "github"]
+                },
+                {
+                    "geo": {
+                        "country_code": "US"
+                    }
+                }
+            ]
+        }
+    ],
+    "auto_redirect_to_identity": true
+}
+```

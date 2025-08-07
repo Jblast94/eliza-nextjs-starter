@@ -1,0 +1,23 @@
+# Use an official Node runtime as a parent image
+FROM node:14
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json (if available)
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Bundle app source
+COPY . .
+
+# Expose port 5678
+EXPOSE 5678
+
+# Start the n8n service
+CMD ["npm", "start"]
+
+# Install PostgreSQL client
+RUN apt-get update && apt-get install -y postgresql-client

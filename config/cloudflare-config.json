@@ -1,0 +1,52 @@
+{
+    "tunnel": "${CLOUDFLARE_TUNNEL_TOKEN}",
+    "ingress": [
+        {
+            "hostname": "chat.bbj4u.xyz",
+            "service": "http://openwebui:8080"
+        },
+        {
+            "hostname": "s3.bbj4u.xyz",
+            "service": "http://minio:9000"
+        },
+        {
+            "hostname": "s3-console.bbj4u.xyz",
+            "service": "http://minio:9001"
+        },
+        {
+            "hostname": "n8n.bbj4u.xyz",
+            "service": "http://n8n:5678"
+        },
+        {
+            "hostname": "db.bbj4u.xyz",
+            "service": "http://adminer:8080"
+        },
+        {
+            "hostname": "monitor.bbj4u.xyz",
+            "service": "http://grafana:3000"
+        },
+        {
+            "hostname": "metrics.bbj4u.xyz",
+            "service": "http://prometheus:9090"
+        },
+        {
+            "hostname": "notebook.bbj4u.xyz",
+            "service": "http://jupyter:8888"
+        },
+        {
+            "hostname": "docker.bbj4u.xyz",
+            "service": "http://portainer:9443"
+        },
+        {
+            "hostname": "queue.bbj4u.xyz",
+            "service": "http://rabbitmq:15672"
+        },
+        {
+            "hostname": "llm.bbj4u.xyz",
+            "service": "http://ollama:11434"
+        },
+        {
+            "service": "http_status:404"
+        }
+    ]
+}

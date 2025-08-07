@@ -3,5 +3,9 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"settings": {
+		"accessibility.voice.autoSynthesize": "on",
+		"github.copilot.nextEditSuggestions.enabled": true
+	}
 }

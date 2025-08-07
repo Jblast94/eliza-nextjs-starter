@@ -1,0 +1,15 @@
+# Ignore environment files
+.env
+
+# Ignore cloud and local config files
+.vercel/
+*.code-workspace
+
+# Ignore backup files
+*.backup
+
+# Ignore node modules
+node_modules/
+
+# Ignore python cache
+__pycache__/

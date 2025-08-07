@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  rustdesk-hbbs:
+    image: rustdesk/rustdesk-server:latest
+    container_name: rustdesk-hbbs
+    ports:
+      - "21115:21115"
+      - "21116:21116"
+      - "21116:21116/udp"
+      - "21118:21118"
+    command: hbbs
+    volumes:
+      - rustdesk_data:/root
+    networks:
+      - proxy
+    restart: unless-stopped
+    environment:
+      - RELAY=rustdesk-hbbr:21117
+      - KEY=${RUSTDESK_KEY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rustdesk.rule=Host(`remote.bbj4u.xyz`)"
+      - "traefik.http.services.rustdesk.loadbalancer.server.port=21115"
+
+  rustdesk-hbbr:
+    image: rustdesk/rustdesk-server:latest
+    container_name: rustdesk-hbbr
+    ports:
+      - "21117:21117"
+      - "21119:21119"
+    command: hbbr
+    depends_on:
+      - rustdesk-hbbs
+    networks:
+      - proxy
+    restart: unless-stopped
+
+  windows-dev:
+    image: mcr.microsoft.com/windows/server:ltsc2022
+    container_name: windows-dev
+    ports:
+      - "3389:3389"  # RDP port
+    volumes:
+      - windows_data:/C:/Users/Administrator/Documents
+    networks:
+      - proxy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+    environment:
+      - WINDOWS_PASSWORD=${DEFAULT_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.windows.rule=Host(`trae.bbj4u.xyz`)"
+      - "traefik.http.services.windows.loadbalancer.server.port=3389"
+
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    command: tunnel --config /etc/cloudflared/config.json run
+    volumes:
+      - ./config/cloudflare:/etc/cloudflared:ro
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      - TUNNEL_ID=${CLOUDFLARE_TUNNEL_ID}
+    networks:
+      - proxy
+    restart: unless-stopped
+    depends_on:
+      - rustdesk-hbbs
+      - windows-dev
+    healthcheck:
+      test: ["CMD", "cloudflared", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  proxy:
+    external: true
+
+volumes:
+  rustdesk_data:
+  windows_data:

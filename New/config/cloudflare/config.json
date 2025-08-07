@@ -1,0 +1,71 @@
+{
+    "tunnel_id": "${CLOUDFLARE_TUNNEL_ID}",
+    "credentials-file": "/etc/cloudflared/creds.json",
+    "ingress": [
+        {
+            "hostname": "remote.bbj4u.xyz",
+            "service": "tcp://rustdesk-hbbs:21115",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "remote.bbj4u.xyz",
+            "service": "udp://rustdesk-hbbs:21116",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "trae.bbj4u.xyz",
+            "service": "tcp://windows-dev:3389",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "n8n.bbj4u.xyz",
+            "service": "http://n8n:5678",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "chat.bbj4u.xyz",
+            "service": "http://openwebui:8080",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "llm.bbj4u.xyz",
+            "service": "http://ollama:11434",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "s3.bbj4u.xyz",
+            "service": "http://minio:9000",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "hostname": "s3-console.bbj4u.xyz",
+            "service": "http://minio:9001",
+            "originRequest": {
+                "noTLSVerify": true
+            }
+        },
+        {
+            "service": "http_status:404"
+        }
+    ],
+    "warp-routing": {
+        "enabled": true
+    },
+    "metrics": "localhost:2000",
+    "no-tls-verify": true,
+    "loglevel": "info"
+}
